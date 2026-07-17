@@ -111,7 +111,7 @@ document.addEventListener('alpine:init', () => {
                 category: this.formData.category || null,
                 amount: parseFloat(this.formData.amount) || 0,
                 receipt: this.formData.receipt || null,
-                // REVISI OKSIONAL: Jika kolom jumlah diisi maka jadikan angka, jika kosong kirim null
+                // Jika kolom jumlah diisi maka jadikan angka, jika kosong kirim null (agar database aman dari error)
                 quantity: this.formData.quantity ? parseInt(this.formData.quantity) : null 
             };
 
@@ -221,29 +221,63 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
-        // --- EXPORT LAPORAN EXCEL ---
+        // --- EXPORT LAPORAN EXCEL SUPER RAPI ---
         exportToExcel() {
             if (this.transactions.length === 0) {
                 this.showToast('Tidak ada data transaksi untuk di-export', 'error');
                 return;
             }
             
-            const excelData = this.transactions.map((t, i) => ({
-                'No': i + 1,
-                'Tanggal': this.formatDate(t.date),
-                'Jenis Transaksi': t.type === 'masuk' ? 'Pemasukan' : 'Pengeluaran',
-                'Kategori': t.category || '-',
-                'Keterangan / Keperluan': t.description,
-                'Jumlah Barang': t.quantity || '-', 
-                'Nominal (Rp)': parseFloat(t.amount)
-            }));
+            // 1. Susunan Baris Excel (Sistem Array of Arrays)
+            const barisExcel = [
+                ["LAPORAN REKAPITULASI KEUANGAN - ASV FINANCES"], 
+                [`Tanggal Cetak: ${new Date().toLocaleDateString('id-ID')} | Pukul: ${new Date().toLocaleTimeString('id-ID')}`], 
+                [], 
+                ["No", "Tanggal", "Jenis Transaksi", "Kategori", "Keterangan / Keperluan", "Jumlah Barang", "Nominal (Rp)"] 
+            ];
 
-            const ws = XLSX.utils.json_to_sheet(excelData);
+            // 2. Masukkan Seluruh Data Transaksi dari Supabase ke Baris Tabel
+            this.transactions.forEach((t, i) => {
+                barisExcel.push([
+                    i + 1,
+                    this.formatDate(t.date),
+                    t.type === 'masuk' ? 'Pemasukan' : 'Pengeluaran',
+                    t.category || '-',
+                    t.description,
+                    t.quantity || '-', 
+                    parseFloat(t.amount)
+                ]);
+            });
+
+            // 3. Menambahkan Baris Ringkasan Total Otomatis di Paling Bawah
+            barisExcel.push([]); 
+            barisExcel.push(["", "", "", "", "TOTAL PEMASUKAN", "", this.totals.masuk]);
+            barisExcel.push(["", "", "", "", "TOTAL PENGELUARAN", "", this.totals.keluar]);
+            barisExcel.push(["", "", "", "", "SALDO AKHIR TERSEDIA", "", this.totals.saldo]);
+
+            // 4. Konversi Data Menjadi Worksheet Excel
+            const ws = XLSX.utils.aoa_to_sheet(barisExcel);
+
+            // 5. ATUR LEBAR KOLOM OTOMATIS (Autofit) agar tidak terpotong (###)
+            const lebarKolom = [
+                { wch: 6 },   // Kolom No
+                { wch: 15 },  // Kolom Tanggal
+                { wch: 18 },  // Kolom Jenis Transaksi
+                { wch: 16 },  // Kolom Kategori
+                { wch: 38 },  // Kolom Keterangan / Keperluan
+                { wch: 14 },  // Kolom Jumlah Barang
+                { wch: 22 }   // Kolom Nominal (Rp)
+            ];
+            ws['!cols'] = lebarKolom;
+
+            // 6. Satukan ke Workbook dan Jalankan Unduhan
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Rekap Keuangan");
-            XLSX.writeFile(wb, `Data_Keuangan_ASV_${new Date().getTime()}.xlsx`);
+            XLSX.utils.book_append_sheet(wb, ws, "Rekap Finansial");
             
-            this.showToast('Laporan Excel berhasil diunduh!', 'success');
+            const timestamp = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(wb, `Laporan_Keuangan_ASV_${timestamp}.xlsx`);
+            
+            this.showToast('Laporan Excel rapi berhasil diunduh!', 'success');
         }
     }));
 });
