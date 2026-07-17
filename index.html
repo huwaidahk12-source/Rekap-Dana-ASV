@@ -46,34 +46,31 @@
     </div>
 
     <!-- WRAPPER UTAMA DENGAN STATE SIDEBAR UNTUK HP -->
-    <div x-data="{ mobileSidebarOpen: false }" class="flex h-screen overflow-hidden relative">
+    <div x-data Tint="{ mobileSidebarOpen: false }" class="flex h-screen overflow-hidden relative">
         
-        <!-- BACKDROP: Latar belakang gelap saat sidebar HP terbuka (Klik di luar untuk menutup) -->
+        <!-- BACKDROP SIDEBAR MOBILE -->
         <div x-show="mobileSidebarOpen" 
              @click="mobileSidebarOpen = false" 
              x-transition.opacity
              class="fixed inset-0 bg-gray-950/60 z-40 md:hidden"></div>
 
-        <!-- SIDEBAR (Mendukung Geser/Slide di HP & Tetap Menetap di Desktop) -->
+        <!-- SIDEBAR -->
         <div :class="mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'" 
              class="fixed inset-y-0 left-0 w-64 bg-gray-900 text-gray-300 flex flex-col justify-between transition-transform duration-300 ease-in-out z-50 md:z-20 md:static shadow-2xl md:shadow-none">
             
             <div>
-                <!-- BRANDING & LOGO BARU -->
+                <!-- BRANDING & LOGO -->
                 <div class="h-20 flex items-center px-6 border-b border-gray-800 bg-gray-950/20 relative">
                     <div class="flex items-center gap-3">
-                        <!-- Logo FinTech Icon -->
                         <div class="w-10 h-10 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/30 ring-2 ring-blue-400/20">
                             <i class="fa-solid fa-wallet text-lg"></i>
                         </div>
-                        <!-- Nama Aplikasi -->
                         <div>
-                            <h1 class="font-bold text-white tracking-wide text-base bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-300">Rekap Dana ASV</h1>
+                            <h1 class="font-bold text-white tracking-wide text-base bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-300">ASV Finances</h1>
                             <p class="text-[10px] text-blue-400 font-semibold uppercase tracking-widest">Digital Ledger</p>
                         </div>
                     </div>
                     
-                    <!-- Tombol Close Sidebar (Hanya Muncul di HP) -->
                     <button @click="mobileSidebarOpen = false" class="md:hidden absolute top-6 right-4 text-gray-400 hover:text-white transition">
                         <i class="fa-solid fa-xmark text-lg"></i>
                     </button>
@@ -85,7 +82,7 @@
                         <i class="fa-solid fa-chart-pie w-5 text-center text-sm"></i> Dashboard
                     </button>
                     <button @click="currentTab = 'transactions'; mobileSidebarOpen = false" :class="currentTab === 'transactions' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/10' : 'hover:bg-gray-800 hover:text-white'" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition duration-200 font-medium text-sm">
-                        <i class="fa-solid fa-list w-5 text-center text-sm"></i> Transaksi
+                        <i class="fa-solid fa-list w-5 text-center text-sm"></i> Transaksi (CRUD)
                     </button>
                     <button @click="currentTab = 'recap'; mobileSidebarOpen = false" :class="currentTab === 'recap' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/10' : 'hover:bg-gray-800 hover:text-white'" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition duration-200 font-medium text-sm">
                         <i class="fa-solid fa-file-invoice w-5 text-center text-sm"></i> Rekap Buku Besar
@@ -93,19 +90,17 @@
                 </nav>
             </div>
 
-            <!-- FOOTER KECIL DI SIDEBAR -->
             <div class="p-4 border-t border-gray-800 text-center text-[11px] text-gray-500">
-                &copy; 2026 ASV Team v2.0
+                &copy; 2026 ASV Team v2.5
             </div>
         </div>
 
         <!-- MAIN CONTENT CONTAINER -->
         <div class="flex-1 flex flex-col h-full overflow-hidden">
             
-            <!-- HEADER (Diberi Tombol Hamburger Menu Untuk Layar HP) -->
+            <!-- HEADER -->
             <header class="bg-white border-b border-gray-200 h-20 px-4 md:px-6 flex justify-between items-center z-10">
                 <div class="flex items-center gap-2">
-                    <!-- TOMBOL HAMBURGER (Hanya muncul di HP untuk panggil Sidebar) -->
                     <button @click="mobileSidebarOpen = true" class="md:hidden p-2 -ml-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition">
                         <i class="fa-solid fa-bars text-xl"></i>
                     </button>
@@ -121,7 +116,7 @@
                 </button>
             </header>
 
-            <!-- SCROLLABLE CONTENT (Padding bawah dinormalisasi jadi pb-6 karena tidak pakai bottom bar lagi) -->
+            <!-- SCROLLABLE CONTENT -->
             <main class="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50 pb-6">
                 
                 <!-- TAB: DASHBOARD -->
@@ -163,12 +158,26 @@
                 <!-- TAB: TRANSAKSI (CRUD) -->
                 <div x-show="currentTab === 'transactions'" x-transition.opacity.duration.300ms style="display: none;">
                     <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-                        <!-- Toolbar -->
-                        <div class="p-4 border-b border-gray-200 flex justify-between items-center gap-4 bg-gray-50/50">
+                        
+                        <!-- Toolbar (Diubah agar muat dropdown sorting baru) -->
+                        <div class="p-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-gray-50/50">
                             <h3 class="font-semibold text-gray-800 text-sm md:text-base">Daftar Transaksi</h3>
-                            <button @click="openModal('add')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs md:text-sm font-semibold flex items-center gap-2 transition duration-200 shadow-md">
-                                <i class="fa-solid fa-plus"></i> Tambah
-                            </button>
+                            
+                            <!-- Fitur Sort Dropdown & Tombol Tambah -->
+                            <div class="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                                <div class="flex items-center gap-1.5">
+                                    <label class="text-[11px] font-medium text-gray-500 hidden xs:inline"><i class="fa-solid fa-sort"></i> Urutan:</label>
+                                    <select x-model="sortBy" class="rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none bg-white text-gray-700 font-medium">
+                                        <option value="modifikasi-terbaru">Modifikasi Terbaru</option>
+                                        <option value="modifikasi-terlama">Modifikasi Terlama</option>
+                                        <option value="tanggal-terbaru">Tanggal Terbaru</option>
+                                        <option value="tanggal-terlama">Tanggal Terlama</option>
+                                    </select>
+                                </div>
+                                <button @click="openModal('add')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition duration-200 shadow-sm">
+                                    <i class="fa-solid fa-plus"></i> Tambah
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Table Wrapper -->
@@ -185,7 +194,8 @@
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-200 text-xs md:text-sm">
-                                    <template x-for="(item, index) in transactions" :key="item.id">
+                                    <!-- Loop menggunakan sortedTransactions agar otomatis terurut -->
+                                    <template x-for="item in sortedTransactions" :key="item.id">
                                         <tr class="hover:bg-gray-50 transition duration-150">
                                             <td class="px-4 py-3.5 whitespace-nowrap text-gray-500" x-text="formatDate(item.date)"></td>
                                             <td class="px-4 py-3.5">
@@ -214,10 +224,10 @@
                                                 </template>
                                             </td>
                                             <td class="px-4 py-3.5 whitespace-nowrap text-right text-sm font-medium">
-                                                <button @click="openModal('edit', item, index)" class="text-gray-400 hover:text-blue-600 px-1.5" title="Edit">
+                                                <button @click="openModal('edit', item)" class="text-gray-400 hover:text-blue-600 px-1.5" title="Edit">
                                                     <i class="fa-solid fa-pen text-xs"></i>
                                                 </button>
-                                                <button @click="deleteTransaction(index)" class="text-gray-400 hover:text-red-600 px-1.5" title="Hapus">
+                                                <button @click="deleteTransaction(item.id)" class="text-gray-400 hover:text-red-600 px-1.5" title="Hapus">
                                                     <i class="fa-solid fa-trash text-xs"></i>
                                                 </button>
                                             </td>
