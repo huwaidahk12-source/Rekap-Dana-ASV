@@ -1,0 +1,41 @@
+/* ==========================================
+   ASV FINANCIAL DASHBOARD - CORE STYLES
+   ========================================== */
+
+/* 1. Custom Scrollbar Modern (Chrome, Safari, Edge, Opera) */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* 2. Prevent Alpine.js Flashing 
+   (Menghindari elemen berkedip sebelum JavaScript selesai dimuat) */
+[x-cloak] {
+    display: none !important;
+}
+
+/* 3. Reset Input Type Number (Menghilangkan Panah Spinner Naik/Turun) */
+/* Browser berbasis Webkit (Chrome, Safari, Edge, Opera) */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+    -webkit-appearance: none; 
+    margin: 0; 
+}
+
+/* Standar Browser Modern & Firefox Terbaru (Bebas Error Deprecated) */
+input[type=number] {
+    appearance: textfield;
+}
