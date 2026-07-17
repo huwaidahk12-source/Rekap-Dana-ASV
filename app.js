@@ -1,11 +1,11 @@
-// 1. Perbaikan URL (Hapus /rest/v1/) dan ubah nama variabel agar tidak bentrok
+// 1. Konfigurasi Koneksi Supabase
 const supabaseUrl = 'https://pezjsopxdcpjikdquntd.supabase.co';
 const supabaseKey = 'sb_publishable_OFOF9d73FqpAucd_Nt1vJQ_EdOAHV_8';
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
 document.addEventListener('alpine:init', () => {
     Alpine.data('rabApp', () => ({
-        // State UI
+        // State UI / Navigasi
         currentTab: 'transactions', 
         isModalOpen: false,
         isReceiptOpen: false,
@@ -15,11 +15,11 @@ document.addEventListener('alpine:init', () => {
         toasts: [],
         chartInstance: null,
         
-        // State Data (Sekarang default-nya kosong, karena kita akan ambil dari database)
+        // State Data Utama
         transactions: [],
         formData: { id: '', date: '', type: 'masuk', category: '', description: '', quantity: '', amount: '', receipt: '' },
 
-        // 2. Fungsi init dibuat async untuk mengambil data pertama kali dari Supabase
+        // Fungsi inisialisasi awal saat aplikasi dimuat
         async init() {
             await this.fetchTransactions();
 
@@ -31,12 +31,12 @@ document.addEventListener('alpine:init', () => {
             });
         },
 
-        // --- AMBIL DATA DARI SUPABASE ---
+        // --- AMBIL DATA (READ) ---
         async fetchTransactions() {
             const { data, error } = await supabaseClient
                 .from('transactions')
                 .select('*')
-                .order('id', { ascending: false }); // Mengurutkan dari yang terbaru
+                .order('id', { ascending: false }); // Urutkan dari yang paling baru
             
             if (error) {
                 this.showToast('Gagal mengambil data: ' + error.message, 'error');
@@ -45,7 +45,7 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
-        // --- FORMATTERS & CALCULATIONS ---
+        // --- HITUNGAN & FORMATTER ---
         get totals() {
             let masuk = this.transactions.filter(t => t.type === 'masuk').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
             let keluar = this.transactions.filter(t => t.type === 'keluar').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
@@ -61,20 +61,21 @@ document.addEventListener('alpine:init', () => {
             return new Date(dateString).toLocaleDateString('id-ID', options);
         },
 
-        // --- CRUD LOGIC ---
+        // --- MANAGEMENT MODAL & INPUT ---
         openModal(mode, item = null, index = null) {
             this.modalMode = mode;
             if (mode === 'edit' && item) {
                 this.editIndex = index;
                 this.formData = JSON.parse(JSON.stringify(item)); 
             } else {
+                // Saat tambah baru, Jumlah (quantity) dikosongkan agar opsional
                 this.formData = { 
                     id: Date.now(), 
                     date: new Date().toISOString().split('T')[0], 
                     type: 'keluar', 
                     category: '', 
                     description: '', 
-                    quantity: 1, 
+                    quantity: '', 
                     amount: '', 
                     receipt: '' 
                 };
@@ -99,48 +100,57 @@ document.addEventListener('alpine:init', () => {
             reader.readAsDataURL(file);
         },
 
-        // 3. Mengubah penyimpanan data dari localStorage ke Supabase Table
+        // --- SIMPAN DATA (CREATE & UPDATE) ---
         async saveTransaction() {
-            // Pastikan kuantitas bernilai angka
-            this.formData.quantity = parseInt(this.formData.quantity) || 1;
-            this.formData.amount = parseFloat(this.formData.amount) || 0;
+            // Pembersihan data sebelum dikirim ke Supabase
+            const payload = {
+                id: this.formData.id,
+                date: this.formData.date,
+                type: this.formData.type,
+                description: this.formData.description,
+                category: this.formData.category || null,
+                amount: parseFloat(this.formData.amount) || 0,
+                receipt: this.formData.receipt || null,
+                // REVISI OKSIONAL: Jika kolom jumlah diisi maka jadikan angka, jika kosong kirim null
+                quantity: this.formData.quantity ? parseInt(this.formData.quantity) : null 
+            };
 
             if (this.modalMode === 'add') {
                 const { data, error } = await supabaseClient
                     .from('transactions')
-                    .insert([this.formData])
+                    .insert([payload])
                     .select();
                 
                 if (error) {
-                    this.showToast('Gagal menyimpan: ' + error.message, 'error');
+                    this.showToast('Gagal menyimpan ke cloud: ' + error.message, 'error');
                     return;
                 }
                 
                 this.transactions.unshift(data[0]); 
-                this.showToast('Transaksi berhasil disimpan ke Cloud!', 'success');
+                this.showToast('Transaksi baru berhasil disimpan!', 'success');
 
             } else if (this.modalMode === 'edit') {
                 const { data, error } = await supabaseClient
                     .from('transactions')
-                    .update(this.formData)
+                    .update(payload)
                     .eq('id', this.formData.id)
                     .select();
                 
                 if (error) {
-                    this.showToast('Gagal memperbarui: ' + error.message, 'error');
+                    this.showToast('Gagal memperbarui data: ' + error.message, 'error');
                     return;
                 }
 
                 this.transactions[this.editIndex] = data[0];
-                this.showToast('Transaksi berhasil diperbarui di Cloud!', 'success');
+                this.showToast('Transaksi berhasil diperbarui!', 'success');
             }
             
             this.isModalOpen = false;
         },
 
-        // 4. Mengubah hapus data agar langsung mengeksekusi baris di Supabase
+        // --- HAPUS DATA (DELETE) ---
         async deleteTransaction(index) {
-            if (confirm('Data ini akan dihapus secara permanen dari database Cloud. Lanjutkan?')) {
+            if (confirm('Apakah Anda yakin ingin menghapus data ini secara permanen dari Cloud database?')) {
                 const itemID = this.transactions[index].id;
                 
                 const { error } = await supabaseClient
@@ -149,16 +159,16 @@ document.addEventListener('alpine:init', () => {
                     .eq('id', itemID);
                 
                 if (error) {
-                    this.showToast('Gagal menghapus: ' + error.message, 'error');
+                    this.showToast('Gagal menghapus data: ' + error.message, 'error');
                     return;
                 }
 
                 this.transactions.splice(index, 1);
-                this.showToast('Data berhasil dihapus dari Cloud!', 'success');
+                this.showToast('Data berhasil dihapus!', 'success');
             }
         },
 
-        // --- UTILITIES ---
+        // --- UTILITIES & TOAST ---
         viewReceipt(base64) {
             this.activeReceipt = base64;
             this.isReceiptOpen = true;
@@ -172,7 +182,7 @@ document.addEventListener('alpine:init', () => {
             }, 3000);
         },
 
-        // --- CHART & EXPORT ---
+        // --- GRAFIK (CHART.JS) ---
         initChart() {
             const canvas = document.getElementById('rabChart');
             if (!canvas) return;
@@ -211,28 +221,29 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
+        // --- EXPORT LAPORAN EXCEL ---
         exportToExcel() {
             if (this.transactions.length === 0) {
-                this.showToast('Tidak ada data untuk di-export', 'error');
+                this.showToast('Tidak ada data transaksi untuk di-export', 'error');
                 return;
             }
             
             const excelData = this.transactions.map((t, i) => ({
                 'No': i + 1,
                 'Tanggal': this.formatDate(t.date),
-                'Jenis': t.type === 'masuk' ? 'Pemasukan' : 'Pengeluaran',
+                'Jenis Transaksi': t.type === 'masuk' ? 'Pemasukan' : 'Pengeluaran',
                 'Kategori': t.category || '-',
-                'Keterangan Transaksi': t.description,
-                'Jumlah Barang': t.quantity || 1, 
+                'Keterangan / Keperluan': t.description,
+                'Jumlah Barang': t.quantity || '-', 
                 'Nominal (Rp)': parseFloat(t.amount)
             }));
 
             const ws = XLSX.utils.json_to_sheet(excelData);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Rekap Keuangan");
-            XLSX.writeFile(wb, `Data_Keuangan_${new Date().getTime()}.xlsx`);
+            XLSX.writeFile(wb, `Data_Keuangan_ASV_${new Date().getTime()}.xlsx`);
             
-            this.showToast('Data berhasil diekspor ke Excel!', 'success');
+            this.showToast('Laporan Excel berhasil diunduh!', 'success');
         }
     }));
 });
