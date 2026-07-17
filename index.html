@@ -13,122 +13,148 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- FontAwesome -->
+    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- External Libraries (Chart & Excel) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     
-    <!-- 1. SUPABASE SDK (Wajib di atas app.js agar koneksi dikenali) -->
+    <!-- SUPABASE SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
-    <!-- 2. CORE SCRIPTS (Urutan app.js dulu baru Alpine) -->
+    <!-- CORE SCRIPTS -->
     <script defer src="app.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans antialiased" x-data="rabApp()" x-cloak>
+<body class="bg-gray-50 text-gray-800 font-sans antialiased relative" x-data="rabApp()" x-cloak>
 
     <!-- TOAST NOTIFICATION -->
-    <div class="fixed top-5 right-5 z-[100] flex flex-col gap-2">
+    <div class="fixed top-5 left-1/2 -translate-x-1/2 md:left-auto md:right-5 md:translate-x-0 z-[100] flex flex-col gap-2 w-[90%] sm:w-auto">
         <template x-for="toast in toasts" :key="toast.id">
             <div x-show="true" 
                  x-transition:enter="transition ease-out duration-300"
-                 x-transition:enter-start="opacity-0 translate-x-8"
-                 x-transition:enter-end="opacity-100 translate-x-0"
-                 x-transition:leave="transition ease-in duration-200"
-                 x-transition:leave-start="opacity-100"
-                 x-transition:leave-end="opacity-0"
-                 class="px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 border text-sm font-medium min-w-[250px]"
-                 :class="toast.type === 'success' ? 'bg-white border-green-200 text-green-700' : 'bg-white border-red-200 text-red-700'">
+                 x-transition:enter-start="opacity-0 scale-95 md:translate-x-8"
+                 x-transition:enter-end="opacity-100 scale-100 md:translate-x-0"
+                 class="px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 border text-sm font-medium bg-white"
+                 :class="toast.type === 'success' ? 'border-green-200 text-green-700' : 'border-red-200 text-red-700'">
                 <i class="fa-solid" :class="toast.type === 'success' ? 'fa-check-circle text-green-500' : 'fa-circle-exclamation text-red-500'"></i>
                 <span x-text="toast.message"></span>
             </div>
         </template>
     </div>
 
-    <div class="flex h-screen overflow-hidden relative">
+    <!-- WRAPPER UTAMA DENGAN STATE SIDEBAR UNTUK HP -->
+    <div x-data="{ mobileSidebarOpen: false }" class="flex h-screen overflow-hidden relative">
         
-        <!-- SIDEBAR -->
-        <div class="w-64 bg-gray-900 text-gray-300 flex flex-col justify-between hidden md:flex shadow-2xl z-20">
+        <!-- BACKDROP: Latar belakang gelap saat sidebar HP terbuka (Klik di luar untuk menutup) -->
+        <div x-show="mobileSidebarOpen" 
+             @click="mobileSidebarOpen = false" 
+             x-transition.opacity
+             class="fixed inset-0 bg-gray-950/60 z-40 md:hidden"></div>
+
+        <!-- SIDEBAR (Mendukung Geser/Slide di HP & Tetap Menetap di Desktop) -->
+        <div :class="mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'" 
+             class="fixed inset-y-0 left-0 w-64 bg-gray-900 text-gray-300 flex flex-col justify-between transition-transform duration-300 ease-in-out z-50 md:z-20 md:static shadow-2xl md:shadow-none">
+            
             <div>
-                <div class="h-20 flex items-center px-6 border-b border-gray-800">
+                <!-- BRANDING & LOGO BARU -->
+                <div class="h-20 flex items-center px-6 border-b border-gray-800 bg-gray-950/20 relative">
                     <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white font-bold">
-                            <i class="fa-solid fa-bolt"></i>
+                        <!-- Logo FinTech Icon -->
+                        <div class="w-10 h-10 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/30 ring-2 ring-blue-400/20">
+                            <i class="fa-solid fa-wallet text-lg"></i>
                         </div>
+                        <!-- Nama Aplikasi -->
                         <div>
-                            <h1 class="font-bold text-white tracking-wide text-sm">ASV FINANCES</h1>
-                            <p class="text-[10px] text-gray-400 uppercase tracking-widest">Management System</p>
+                            <h1 class="font-bold text-white tracking-wide text-base bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-300">Rekap Dana ASV</h1>
+                            <p class="text-[10px] text-blue-400 font-semibold uppercase tracking-widest">Digital Ledger</p>
                         </div>
                     </div>
+                    
+                    <!-- Tombol Close Sidebar (Hanya Muncul di HP) -->
+                    <button @click="mobileSidebarOpen = false" class="md:hidden absolute top-6 right-4 text-gray-400 hover:text-white transition">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
                 </div>
                 
+                <!-- MENU NAVIGASI SIDEBAR -->
                 <nav class="p-4 space-y-1">
-                    <button @click="currentTab = 'dashboard'" :class="currentTab === 'dashboard' ? 'bg-gray-800 text-white' : 'hover:bg-gray-800 hover:text-white'" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition duration-200 font-medium text-sm">
-                        <i class="fa-solid fa-chart-pie w-5 text-center"></i> Dashboard
+                    <button @click="currentTab = 'dashboard'; mobileSidebarOpen = false" :class="currentTab === 'dashboard' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/10' : 'hover:bg-gray-800 hover:text-white'" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition duration-200 font-medium text-sm">
+                        <i class="fa-solid fa-chart-pie w-5 text-center text-sm"></i> Dashboard
                     </button>
-                    <button @click="currentTab = 'transactions'" :class="currentTab === 'transactions' ? 'bg-gray-800 text-white' : 'hover:bg-gray-800 hover:text-white'" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition duration-200 font-medium text-sm">
-                        <i class="fa-solid fa-list w-5 text-center"></i> Transaksi (CRUD)
+                    <button @click="currentTab = 'transactions'; mobileSidebarOpen = false" :class="currentTab === 'transactions' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/10' : 'hover:bg-gray-800 hover:text-white'" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition duration-200 font-medium text-sm">
+                        <i class="fa-solid fa-list w-5 text-center text-sm"></i> Transaksi
                     </button>
-                    <button @click="currentTab = 'recap'" :class="currentTab === 'recap' ? 'bg-gray-800 text-white' : 'hover:bg-gray-800 hover:text-white'" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition duration-200 font-medium text-sm">
-                        <i class="fa-solid fa-file-invoice w-5 text-center"></i> Rekap Buku Besar
+                    <button @click="currentTab = 'recap'; mobileSidebarOpen = false" :class="currentTab === 'recap' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/10' : 'hover:bg-gray-800 hover:text-white'" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition duration-200 font-medium text-sm">
+                        <i class="fa-solid fa-file-invoice w-5 text-center text-sm"></i> Rekap Buku Besar
                     </button>
                 </nav>
             </div>
+
+            <!-- FOOTER KECIL DI SIDEBAR -->
+            <div class="p-4 border-t border-gray-800 text-center text-[11px] text-gray-500">
+                &copy; 2026 ASV Team v2.0
+            </div>
         </div>
 
-        <!-- MAIN CONTENT -->
+        <!-- MAIN CONTENT CONTAINER -->
         <div class="flex-1 flex flex-col h-full overflow-hidden">
             
-            <!-- HEADER -->
-            <header class="bg-white border-b border-gray-200 h-20 px-6 flex justify-between items-center z-10">
-                <div>
-                    <h2 class="text-xl font-bold text-gray-800" x-text="
-                        currentTab === 'dashboard' ? 'Ringkasan Dashboard' : 
-                        (currentTab === 'transactions' ? 'Manajemen Transaksi Kas' : 'Rekapitulasi Finansial')
+            <!-- HEADER (Diberi Tombol Hamburger Menu Untuk Layar HP) -->
+            <header class="bg-white border-b border-gray-200 h-20 px-4 md:px-6 flex justify-between items-center z-10">
+                <div class="flex items-center gap-2">
+                    <!-- TOMBOL HAMBURGER (Hanya muncul di HP untuk panggil Sidebar) -->
+                    <button @click="mobileSidebarOpen = true" class="md:hidden p-2 -ml-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition">
+                        <i class="fa-solid fa-bars text-xl"></i>
+                    </button>
+                    
+                    <h2 class="text-base md:text-xl font-bold text-gray-800" x-text="
+                        currentTab === 'dashboard' ? 'Dashboard' : 
+                        (currentTab === 'transactions' ? 'Manajemen Transaksi' : 'Rekapitulasi')
                     "></h2>
                 </div>
-                <button @click="exportToExcel()" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition duration-200">
-                    <i class="fa-solid fa-file-excel"></i> Export Excel
+                
+                <button @click="exportToExcel()" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-3 py-2 rounded-lg text-xs md:text-sm font-semibold flex items-center gap-2 transition duration-200">
+                    <i class="fa-solid fa-file-excel text-sm"></i> <span class="hidden sm:inline">Export Excel</span>
                 </button>
             </header>
 
-            <!-- SCROLLABLE CONTENT -->
-            <main class="flex-1 overflow-y-auto p-6 bg-gray-50">
+            <!-- SCROLLABLE CONTENT (Padding bawah dinormalisasi jadi pb-6 karena tidak pakai bottom bar lagi) -->
+            <main class="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50 pb-6">
                 
                 <!-- TAB: DASHBOARD -->
                 <div x-show="currentTab === 'dashboard'" x-transition.opacity.duration.300ms class="space-y-6">
                     <!-- Cards -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Total Pemasukan</p>
-                            <h3 class="text-2xl font-bold text-gray-800" x-text="formatRupiah(totals.masuk)"></h3>
-                            <div class="mt-4 flex items-center text-xs text-emerald-600 font-medium bg-emerald-50 inline-block px-2 py-1 rounded">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+                        <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                            <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Total Pemasukan</p>
+                            <h3 class="text-xl md:text-2xl font-bold text-gray-800" x-text="formatRupiah(totals.masuk)"></h3>
+                            <div class="mt-3 flex items-center text-[11px] text-emerald-600 font-medium bg-emerald-50 inline-block px-2 py-0.5 rounded w-max">
                                 <i class="fa-solid fa-arrow-up mr-1"></i> Uang Masuk
                             </div>
                         </div>
-                        <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Total Pengeluaran</p>
-                            <h3 class="text-2xl font-bold text-gray-800" x-text="formatRupiah(totals.keluar)"></h3>
-                            <div class="mt-4 flex items-center text-xs text-red-600 font-medium bg-red-50 inline-block px-2 py-1 rounded">
+                        <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                            <p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Total Pengeluaran</p>
+                            <h3 class="text-xl md:text-2xl font-bold text-gray-800" x-text="formatRupiah(totals.keluar)"></h3>
+                            <div class="mt-3 flex items-center text-[11px] text-red-600 font-medium bg-red-50 inline-block px-2 py-0.5 rounded w-max">
                                 <i class="fa-solid fa-arrow-down mr-1"></i> Uang Keluar
                             </div>
                         </div>
-                        <div class="bg-gray-900 rounded-xl p-6 shadow-lg shadow-gray-900/20 text-white relative overflow-hidden">
-                            <div class="absolute right-[-20px] bottom-[-20px] opacity-10">
-                                <i class="fa-solid fa-wallet text-9xl"></i>
+                        <div class="bg-gray-900 rounded-xl p-5 shadow-lg shadow-gray-900/20 text-white relative overflow-hidden sm:col-span-2 md:col-span-1">
+                            <div class="absolute right-[-10px] bottom-[-10px] opacity-10">
+                                <i class="fa-solid fa-wallet text-7xl"></i>
                             </div>
-                            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Saldo Akhir Tersedia</p>
-                            <h3 class="text-3xl font-bold text-white mt-2" x-text="formatRupiah(totals.saldo)"></h3>
+                            <p class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Saldo Akhir</p>
+                            <h3 class="text-2xl md:text-3xl font-bold text-white mt-1" x-text="formatRupiah(totals.saldo)"></h3>
                         </div>
                     </div>
                     
                     <!-- Chart -->
-                    <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm w-full md:w-2/3 lg:w-1/2">
+                    <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm w-full md:w-2/3 lg:w-1/2">
                         <h4 class="font-semibold text-gray-800 mb-4 text-sm">Visualisasi Arus Kas</h4>
-                        <div class="h-64 relative w-full">
+                        <div class="h-60 relative w-full">
                             <canvas id="rabChart"></canvas>
                         </div>
                     </div>
@@ -138,75 +164,62 @@
                 <div x-show="currentTab === 'transactions'" x-transition.opacity.duration.300ms style="display: none;">
                     <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
                         <!-- Toolbar -->
-                        <div class="p-5 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4 bg-gray-50/50">
-                            <h3 class="font-semibold text-gray-800 text-lg">Daftar Transaksi</h3>
-                            <button @click="openModal('add')" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition duration-200 shadow-md shadow-blue-600/20">
-                                <i class="fa-solid fa-plus"></i> Tambah Data
+                        <div class="p-4 border-b border-gray-200 flex justify-between items-center gap-4 bg-gray-50/50">
+                            <h3 class="font-semibold text-gray-800 text-sm md:text-base">Daftar Transaksi</h3>
+                            <button @click="openModal('add')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs md:text-sm font-semibold flex items-center gap-2 transition duration-200 shadow-md">
+                                <i class="fa-solid fa-plus"></i> Tambah
                             </button>
                         </div>
 
-                        <!-- Table -->
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
-                                <thead class="bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        <!-- Table Wrapper -->
+                        <div class="overflow-x-auto w-full block">
+                            <table class="w-full text-left border-collapse min-w-[600px]">
+                                <thead class="bg-gray-50 border-b border-gray-200 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
                                     <tr>
-                                        <th class="px-6 py-4">Tanggal</th>
-                                        <th class="px-6 py-4">Keterangan</th>
-                                        <th class="px-6 py-4">Tipe</th>
-                                        <th class="px-6 py-4 text-right">Nominal</th>
-                                        <th class="px-6 py-4 text-center">Bukti Nota</th>
-                                        <th class="px-6 py-4 text-right">Aksi</th>
+                                        <th class="px-4 py-3.5">Tanggal</th>
+                                        <th class="px-4 py-3.5">Keterangan</th>
+                                        <th class="px-4 py-3.5">Tipe</th>
+                                        <th class="px-4 py-3.5 text-right">Nominal</th>
+                                        <th class="px-4 py-3.5 text-center">Nota</th>
+                                        <th class="px-4 py-3.5 text-right">Aksi</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-gray-200 text-sm">
+                                <tbody class="divide-y divide-gray-200 text-xs md:text-sm">
                                     <template x-for="(item, index) in transactions" :key="item.id">
                                         <tr class="hover:bg-gray-50 transition duration-150">
-                                            <td class="px-6 py-4 whitespace-nowrap text-gray-600" x-text="formatDate(item.date)"></td>
-                                            <td class="px-6 py-4">
-                                                <!-- Bagian Keterangan + Badge Total Barang -->
-                                                <div class="flex items-center gap-2 flex-wrap">
+                                            <td class="px-4 py-3.5 whitespace-nowrap text-gray-500" x-text="formatDate(item.date)"></td>
+                                            <td class="px-4 py-3.5">
+                                                <div class="flex items-center gap-1.5 flex-wrap">
                                                     <span class="font-medium text-gray-900" x-text="item.description"></span>
                                                     <template x-if="item.quantity && item.quantity > 0">
-                                                        <span class="bg-blue-50 text-blue-700 text-[11px] px-2 py-0.5 rounded border border-blue-100 font-semibold" x-text="item.quantity + ' pcs'"></span>
+                                                        <span class="bg-blue-50 text-blue-700 text-[10px] px-1.5 py-0.2 rounded border border-blue-100 font-semibold" x-text="item.quantity + ' pcs'"></span>
                                                     </template>
                                                 </div>
-                                                <div class="text-xs text-gray-500 mt-1" x-text="item.category || '-'"></div>
+                                                <div class="text-[11px] text-gray-400 mt-0.5" x-text="item.category || '-'"></div>
                                             </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <span :class="item.type === 'masuk' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-red-100 text-red-800 border-red-200'" class="px-2.5 py-1 rounded-full text-xs font-semibold border">
-                                                    <i :class="item.type === 'masuk' ? 'fa-arrow-down' : 'fa-arrow-up'" class="fa-solid mr-1"></i>
+                                            <td class="px-4 py-3.5 whitespace-nowrap">
+                                                <span :class="item.type === 'masuk' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'" class="px-2 py-0.5 rounded text-[11px] font-semibold border">
                                                     <span x-text="item.type === 'masuk' ? 'Masuk' : 'Keluar'"></span>
                                                 </span>
                                             </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-right font-bold" :class="item.type === 'masuk' ? 'text-emerald-600' : 'text-gray-800'" x-text="formatRupiah(item.amount)"></td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                            <td class="px-4 py-3.5 whitespace-nowrap text-right font-bold" :class="item.type === 'masuk' ? 'text-emerald-600' : 'text-gray-800'" x-text="formatRupiah(item.amount)"></td>
+                                            <td class="px-4 py-3.5 whitespace-nowrap text-center">
                                                 <template x-if="item.receipt">
-                                                    <button @click="viewReceipt(item.receipt)" class="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg text-xs font-semibold transition">
-                                                        <i class="fa-solid fa-image"></i> Lihat
+                                                    <button @click="viewReceipt(item.receipt)" class="text-blue-600 hover:text-blue-800 bg-blue-50 px-2 py-1 rounded font-semibold text-xs">
+                                                        Lihat
                                                     </button>
                                                 </template>
                                                 <template x-if="!item.receipt">
-                                                    <span class="text-gray-400 text-xs italic">-</span>
+                                                    <span class="text-gray-400 italic">-</span>
                                                 </template>
                                             </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <button @click="openModal('edit', item, index)" class="text-gray-400 hover:text-blue-600 transition px-2" title="Edit">
-                                                    <i class="fa-solid fa-pen"></i>
+                                            <td class="px-4 py-3.5 whitespace-nowrap text-right text-sm font-medium">
+                                                <button @click="openModal('edit', item, index)" class="text-gray-400 hover:text-blue-600 px-1.5" title="Edit">
+                                                    <i class="fa-solid fa-pen text-xs"></i>
                                                 </button>
-                                                <button @click="deleteTransaction(index)" class="text-gray-400 hover:text-red-600 transition px-2" title="Hapus">
-                                                    <i class="fa-solid fa-trash"></i>
+                                                <button @click="deleteTransaction(index)" class="text-gray-400 hover:text-red-600 px-1.5" title="Hapus">
+                                                    <i class="fa-solid fa-trash text-xs"></i>
                                                 </button>
-                                            </td>
-                                        </tr>
-                                    </template>
-                                    <template x-if="transactions.length === 0">
-                                        <tr>
-                                            <td colspan="6" class="px-6 py-12 text-center">
-                                                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
-                                                    <i class="fa-solid fa-folder-open text-2xl text-gray-400"></i>
-                                                </div>
-                                                <h3 class="text-gray-900 font-medium text-lg">Belum ada data</h3>
-                                                <p class="text-gray-500 text-sm mt-1">Mulai catat arus kas dengan menekan tombol Tambah Data.</p>
                                             </td>
                                         </tr>
                                     </template>
@@ -218,24 +231,24 @@
 
                 <!-- TAB: REKAP -->
                 <div x-show="currentTab === 'recap'" x-transition.opacity.duration.300ms style="display: none;">
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <!-- Uang Masuk -->
                         <div class="bg-white rounded-xl border border-emerald-200 shadow-sm overflow-hidden">
-                            <div class="bg-emerald-50 px-6 py-4 border-b border-emerald-100">
-                                <h3 class="font-bold text-emerald-800">Buku Pendapatan (In)</h3>
+                            <div class="bg-emerald-50 px-4 py-3 border-b border-emerald-100">
+                                <h3 class="font-bold text-emerald-800 text-sm">Buku Pendapatan (In)</h3>
                             </div>
-                            <div class="p-6">
-                                <ul class="space-y-4">
+                            <div class="p-4">
+                                <ul class="space-y-3">
                                     <template x-for="item in transactions.filter(t => t.type === 'masuk')">
-                                        <li class="flex justify-between items-center pb-4 border-b border-gray-100 last:border-0 last:pb-0">
+                                        <li class="flex justify-between items-center pb-3 border-b border-gray-100 last:border-0 last:pb-0">
                                             <div>
-                                                <div class="flex items-center gap-2">
-                                                    <p class="font-medium text-gray-800 text-sm" x-text="item.description"></p>
-                                                    <span x-show="item.quantity > 0" class="bg-blue-50 text-blue-700 text-[10px] px-1.5 py-0.2 rounded font-medium" x-text="item.quantity + ' pcs'"></span>
+                                                <div class="flex items-center gap-1.5">
+                                                    <p class="font-medium text-gray-800 text-xs md:text-sm" x-text="item.description"></p>
+                                                    <span x-show="item.quantity > 0" class="bg-blue-50 text-blue-700 text-[9px] px-1 py-0.2 rounded font-medium" x-text="item.quantity + ' pcs'"></span>
                                                 </div>
-                                                <p class="text-xs text-gray-500" x-text="formatDate(item.date)"></p>
+                                                <p class="text-[10px] text-gray-400" x-text="formatDate(item.date)"></p>
                                             </div>
-                                            <span class="font-bold text-emerald-600 text-sm" x-text="formatRupiah(item.amount)"></span>
+                                            <span class="font-bold text-emerald-600 text-xs md:text-sm" x-text="formatRupiah(item.amount)"></span>
                                         </li>
                                     </template>
                                 </ul>
@@ -244,21 +257,21 @@
 
                         <!-- Uang Keluar -->
                         <div class="bg-white rounded-xl border border-red-200 shadow-sm overflow-hidden">
-                            <div class="bg-red-50 px-6 py-4 border-b border-red-100">
-                                <h3 class="font-bold text-red-800">Buku Pengeluaran (Out)</h3>
+                            <div class="bg-red-50 px-4 py-3 border-b border-red-100">
+                                <h3 class="font-bold text-red-800 text-sm">Buku Pengeluaran (Out)</h3>
                             </div>
-                            <div class="p-6">
-                                <ul class="space-y-4">
+                            <div class="p-4">
+                                <ul class="space-y-3">
                                     <template x-for="item in transactions.filter(t => t.type === 'keluar')">
-                                        <li class="flex justify-between items-center pb-4 border-b border-gray-100 last:border-0 last:pb-0">
+                                        <li class="flex justify-between items-center pb-3 border-b border-gray-100 last:border-0 last:pb-0">
                                             <div>
-                                                <div class="flex items-center gap-2">
-                                                    <p class="font-medium text-gray-800 text-sm" x-text="item.description"></p>
-                                                    <span x-show="item.quantity > 0" class="bg-blue-50 text-blue-700 text-[10px] px-1.5 py-0.2 rounded font-medium" x-text="item.quantity + ' pcs'"></span>
+                                                <div class="flex items-center gap-1.5">
+                                                    <p class="font-medium text-gray-800 text-xs md:text-sm" x-text="item.description"></p>
+                                                    <span x-show="item.quantity > 0" class="bg-blue-50 text-blue-700 text-[9px] px-1 py-0.2 rounded font-medium" x-text="item.quantity + ' pcs'"></span>
                                                 </div>
-                                                <p class="text-xs text-gray-500" x-text="formatDate(item.date)"></p>
+                                                <p class="text-[10px] text-gray-400" x-text="formatDate(item.date)"></p>
                                             </div>
-                                            <span class="font-bold text-gray-800 text-sm" x-text="formatRupiah(item.amount)"></span>
+                                            <span class="font-bold text-gray-800 text-xs md:text-sm" x-text="formatRupiah(item.amount)"></span>
                                         </li>
                                     </template>
                                 </ul>
@@ -272,96 +285,82 @@
     </div>
 
     <!-- MODAL FORM CRUD -->
-    <div x-show="isModalOpen" style="display: none;" class="relative z-50" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-        <!-- Backdrop -->
-        <div x-show="isModalOpen" x-transition.opacity class="fixed inset-0 bg-gray-900 bg-opacity-50 backdrop-blur-sm transition-opacity"></div>
+    <div x-show="isModalOpen" style="display: none;" class="relative z-50">
+        <div x-show="isModalOpen" x-transition.opacity class="fixed inset-0 bg-gray-900 bg-opacity-60 backdrop-blur-sm"></div>
       
         <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
-            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-                <!-- Modal Panel -->
+            <div class="flex min-h-full items-center justify-center p-4 text-center">
                 <div x-show="isModalOpen" @click.away="isModalOpen = false"
-                     x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
-                     x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-                     class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+                     x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                     class="relative transform overflow-hidden rounded-xl bg-white text-left shadow-2xl transition-all w-full max-w-lg max-h-[90vh] flex flex-col">
                     
-                    <div class="bg-white px-6 pb-6 pt-5">
-                        <div class="flex justify-between items-center mb-5">
-                            <h3 class="text-lg font-bold text-gray-900" id="modal-title" x-text="modalMode === 'add' ? 'Tambah Data Transaksi' : 'Edit Data Transaksi'"></h3>
-                            <button type="button" @click="isModalOpen = false" class="text-gray-400 hover:text-gray-500">
-                                <i class="fa-solid fa-xmark text-lg"></i>
-                            </button>
+                    <div class="bg-white px-5 py-4 border-b border-gray-100 flex justify-between items-center">
+                        <h3 class="text-base font-bold text-gray-900" x-text="modalMode === 'add' ? 'Tambah Transaksi' : 'Edit Transaksi'"></h3>
+                        <button type="button" @click="isModalOpen = false" class="text-gray-400 hover:text-gray-500">
+                            <i class="fa-solid fa-xmark text-base"></i>
+                        </button>
+                    </div>
+
+                    <form @submit.prevent="saveTransaction" class="p-5 space-y-4 overflow-y-auto flex-1">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Tanggal</label>
+                                <input type="date" x-model="formData.date" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Tipe</label>
+                                <select x-model="formData.type" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none">
+                                    <option value="masuk">Uang Masuk</option>
+                                    <option value="keluar">Uang Keluar</option>
+                                </select>
+                            </div>
                         </div>
                         
-                        <!-- FORM CONTENT -->
-                        <form @submit.prevent="saveTransaction" class="space-y-4">
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal</label>
-                                    <input type="date" x-model="formData.date" required class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Tipe Transaksi</label>
-                                    <select x-model="formData.type" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                                        <option value="masuk">Uang Masuk</option>
-                                        <option value="keluar">Uang Keluar</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Keterangan / Keperluan</label>
+                            <input type="text" x-model="formData.description" required placeholder="Contoh: Pembelian domain" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none">
+                        </div>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Keterangan / Keperluan</label>
-                                <input type="text" x-model="formData.description" required placeholder="Contoh: Beli komponen motor DC" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Kategori</label>
+                                <input type="text" x-model="formData.category" placeholder="Operasional" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none">
                             </div>
-                            
-                            <!-- GRID 3 KOLOM: KATEGORI, JUMLAH BARANG, & NOMINAL -->
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Kategori (Opsional)</label>
-                                    <input type="text" x-model="formData.category" placeholder="Contoh: Sparepart" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Jumlah Barang</label>
-                                    <input type="number" x-model="formData.quantity" min="1" placeholder="1" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Nominal (Rp)</label>
-                                    <input type="number" x-model="formData.amount" required placeholder="500000" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-bold text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                                </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Jumlah</label>
+                                <input type="number" x-model="formData.quantity" min="1" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none">
                             </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Nominal (Rp)</label>
+                                <input type="number" x-model="formData.amount" required placeholder="50000" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-xs font-bold focus:ring-1 focus:ring-blue-500 focus:outline-none">
+                            </div>
+                        </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Bukti Nota / Struk (Opsional)</label>
-                                <div class="mt-1 flex justify-center rounded-lg border border-dashed border-gray-300 px-6 py-6" :class="formData.receipt ? 'bg-blue-50 border-blue-300' : ''">
-                                    <div class="text-center">
-                                        <template x-if="!formData.receipt">
-                                            <div>
-                                                <i class="fa-solid fa-cloud-arrow-up text-gray-400 text-3xl mb-3"></i>
-                                                <div class="mt-4 flex text-sm leading-6 text-gray-600 justify-center">
-                                                    <label class="relative cursor-pointer rounded-md bg-white font-semibold text-blue-600 hover:text-blue-500 px-2 py-1">
-                                                        <span>Upload Gambar</span>
-                                                        <input type="file" @change="handleFileUpload" accept="image/*" class="sr-only">
-                                                    </label>
-                                                </div>
-                                                <p class="text-xs leading-5 text-gray-500">PNG, JPG up to 2MB</p>
-                                            </div>
-                                        </template>
-                                        <template x-if="formData.receipt">
-                                            <div>
-                                                <i class="fa-solid fa-circle-check text-emerald-500 text-3xl mb-2"></i>
-                                                <p class="text-sm font-medium text-emerald-700">Bukti nota berhasil dilampirkan.</p>
-                                                <button type="button" @click="formData.receipt = ''" class="mt-2 text-xs text-red-500 hover:text-red-700 font-semibold">Hapus Lampiran</button>
-                                            </div>
-                                        </template>
-                                    </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">Bukti Nota (Maks 2MB)</label>
+                            <div class="mt-1 flex justify-center rounded-lg border border-dashed border-gray-300 py-4 bg-gray-50" :class="formData.receipt ? 'bg-blue-50 border-blue-300' : ''">
+                                <div class="text-center text-xs">
+                                    <template x-if="!formData.receipt">
+                                        <label class="cursor-pointer font-semibold text-blue-600 hover:text-blue-500 block">
+                                            <span><i class="fa-solid fa-cloud-arrow-up mr-1"></i> Pilih Gambar</span>
+                                            <input type="file" @change="handleFileUpload" accept="image/*" class="sr-only">
+                                        </label>
+                                    </template>
+                                    <template x-if="formData.receipt">
+                                        <div class="flex flex-col items-center gap-1">
+                                            <span class="text-emerald-700 font-medium"><i class="fa-solid fa-check"></i> Nota Terlampir</span>
+                                            <button type="button" @click="formData.receipt = ''" class="text-[11px] text-red-500 font-semibold underline">Hapus</button>
+                                        </div>
+                                    </template>
                                 </div>
                             </div>
-                            
-                            <div class="pt-3 flex justify-end gap-3">
-                                <button type="button" @click="isModalOpen = false" class="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">Batal</button>
-                                <button type="submit" class="rounded-lg bg-blue-600 px-6 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">Simpan Data</button>
-                            </div>
-                        </form>
-                    </div>
+                        </div>
+                        
+                        <div class="pt-2 border-t border-gray-100 flex justify-end gap-2">
+                            <button type="button" @click="isModalOpen = false" class="rounded-lg bg-white px-4 py-2 text-xs font-semibold text-gray-700 border border-gray-300">Batal</button>
+                            <button type="submit" class="rounded-lg bg-blue-600 px-5 py-2 text-xs font-semibold text-white shadow-sm">Simpan</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -370,16 +369,12 @@
     <!-- MODAL LIHAT NOTA -->
     <div x-show="isReceiptOpen" style="display: none;" class="relative z-[60]">
         <div class="fixed inset-0 bg-gray-900 bg-opacity-80 backdrop-blur-sm" @click="isReceiptOpen = false"></div>
-        <div class="fixed inset-0 z-10 overflow-y-auto">
-            <div class="flex min-h-full items-center justify-center p-4 text-center">
-                <div class="relative transform overflow-hidden rounded-xl bg-white text-left shadow-2xl transition-all max-w-2xl w-full p-2">
-                    <div class="absolute top-4 right-4 z-10">
-                        <button @click="isReceiptOpen = false" class="bg-gray-900/50 text-white hover:bg-gray-900 rounded-full w-8 h-8 flex items-center justify-center transition backdrop-blur">
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>
-                    </div>
-                    <img :src="activeReceipt" class="w-full h-auto rounded-lg object-contain max-h-[80vh]">
-                </div>
+        <div class="fixed inset-0 z-10 overflow-y-auto flex items-center justify-center p-4">
+            <div class="relative rounded-xl bg-white p-2 max-w-xl w-full shadow-2xl">
+                <button @click="isReceiptOpen = false" class="absolute top-3 right-3 bg-gray-900/60 text-white rounded-full w-7 h-7 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+                <img :src="activeReceipt" class="w-full h-auto rounded-lg object-contain max-h-[75vh]">
             </div>
         </div>
     </div>
