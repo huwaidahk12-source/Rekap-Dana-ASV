@@ -5,15 +5,17 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
 document.addEventListener('alpine:init', () => {
     Alpine.data('rabApp', () => ({
-        // State UI / Navigasi
-        currentTab: 'transactions', 
+        // State UI & Default Halaman Diubah Langsung ke 'dashboard'
+        currentTab: 'dashboard', 
         isModalOpen: false,
         isReceiptOpen: false,
         modalMode: 'add',
-        editIndex: null,
         activeReceipt: '',
         toasts: [],
         chartInstance: null,
+        
+        // State Fitur Sorting Transaksi Baru
+        sortBy: 'modifikasi-terbaru',
         
         // State Data Utama
         transactions: [],
@@ -22,6 +24,11 @@ document.addEventListener('alpine:init', () => {
         // Fungsi inisialisasi awal saat aplikasi dimuat
         async init() {
             await this.fetchTransactions();
+
+            // Render grafik saat awal dibuka jika halaman default-nya dashboard
+            if (this.currentTab === 'dashboard') {
+                setTimeout(() => this.initChart(), 100);
+            }
 
             this.$watch('transactions', () => {
                 if(this.currentTab === 'dashboard') this.updateChart();
@@ -35,14 +42,38 @@ document.addEventListener('alpine:init', () => {
         async fetchTransactions() {
             const { data, error } = await supabaseClient
                 .from('transactions')
-                .select('*')
-                .order('id', { ascending: false }); // Urutkan dari yang paling baru
+                .select('*');
             
             if (error) {
                 this.showToast('Gagal mengambil data: ' + error.message, 'error');
             } else {
                 this.transactions = data || [];
             }
+        },
+
+        // --- LOGIKA UTAMA URUTAN DATA (SORTING GETTER) ---
+        get sortedTransactions() {
+            return [...this.transactions].sort((a, b) => {
+                if (this.sortBy === 'modifikasi-terbaru') {
+                    return b.id - a.id; // Diurutkan berdasarkan timestamp pembuatan data terbaru
+                }
+                if (this.sortBy === 'modifikasi-terlama') {
+                    return a.id - b.id; // Urutan modifikasi terlama
+                }
+                if (this.sortBy === 'tanggal-terbaru') {
+                    const tanggalA = new Date(a.date);
+                    const tanggalB = new Date(b.date);
+                    if (tanggalB - tanggalA !== 0) return tanggalB - tanggalA;
+                    return b.id - a.id; // Jika tanggal sama, kembalikan ke inputan terbaru
+                }
+                if (this.sortBy === 'tanggal-terlama') {
+                    const tanggalA = new Date(a.date);
+                    const tanggalB = new Date(b.date);
+                    if (tanggalA - tanggalB !== 0) return tanggalA - tanggalB;
+                    return a.id - b.id;
+                }
+                return 0;
+            });
         },
 
         // --- HITUNGAN & FORMATTER ---
@@ -62,13 +93,11 @@ document.addEventListener('alpine:init', () => {
         },
 
         // --- MANAGEMENT MODAL & INPUT ---
-        openModal(mode, item = null, index = null) {
+        openModal(mode, item = null) {
             this.modalMode = mode;
             if (mode === 'edit' && item) {
-                this.editIndex = index;
                 this.formData = JSON.parse(JSON.stringify(item)); 
             } else {
-                // Saat tambah baru, Jumlah (quantity) dikosongkan agar opsional
                 this.formData = { 
                     id: Date.now(), 
                     date: new Date().toISOString().split('T')[0], 
@@ -102,7 +131,6 @@ document.addEventListener('alpine:init', () => {
 
         // --- SIMPAN DATA (CREATE & UPDATE) ---
         async saveTransaction() {
-            // Pembersihan data sebelum dikirim ke Supabase
             const payload = {
                 id: this.formData.id,
                 date: this.formData.date,
@@ -111,7 +139,6 @@ document.addEventListener('alpine:init', () => {
                 category: this.formData.category || null,
                 amount: parseFloat(this.formData.amount) || 0,
                 receipt: this.formData.receipt || null,
-                // Jika kolom jumlah diisi maka jadikan angka, jika kosong kirim null (agar database aman dari error)
                 quantity: this.formData.quantity ? parseInt(this.formData.quantity) : null 
             };
 
@@ -141,7 +168,10 @@ document.addEventListener('alpine:init', () => {
                     return;
                 }
 
-                this.transactions[this.editIndex] = data[0];
+                const targetIndex = this.transactions.findIndex(t => t.id === this.formData.id);
+                if (targetIndex !== -1) {
+                    this.transactions[targetIndex] = data[0];
+                }
                 this.showToast('Transaksi berhasil diperbarui!', 'success');
             }
             
@@ -149,21 +179,22 @@ document.addEventListener('alpine:init', () => {
         },
 
         // --- HAPUS DATA (DELETE) ---
-        async deleteTransaction(index) {
+        async deleteTransaction(id) {
             if (confirm('Apakah Anda yakin ingin menghapus data ini secara permanen dari Cloud database?')) {
-                const itemID = this.transactions[index].id;
-                
                 const { error } = await supabaseClient
                     .from('transactions')
                     .delete()
-                    .eq('id', itemID);
+                    .eq('id', id);
                 
                 if (error) {
                     this.showToast('Gagal menghapus data: ' + error.message, 'error');
                     return;
                 }
 
-                this.transactions.splice(index, 1);
+                const targetIndex = this.transactions.findIndex(t => t.id === id);
+                if (targetIndex !== -1) {
+                    this.transactions.splice(targetIndex, 1);
+                }
                 this.showToast('Data berhasil dihapus!', 'success');
             }
         },
@@ -228,7 +259,6 @@ document.addEventListener('alpine:init', () => {
                 return;
             }
             
-            // 1. Susunan Baris Excel (Sistem Array of Arrays)
             const barisExcel = [
                 ["LAPORAN REKAPITULASI KEUANGAN - ASV FINANCES"], 
                 [`Tanggal Cetak: ${new Date().toLocaleDateString('id-ID')} | Pukul: ${new Date().toLocaleTimeString('id-ID')}`], 
@@ -236,8 +266,8 @@ document.addEventListener('alpine:init', () => {
                 ["No", "Tanggal", "Jenis Transaksi", "Kategori", "Keterangan / Keperluan", "Jumlah Barang", "Nominal (Rp)"] 
             ];
 
-            // 2. Masukkan Seluruh Data Transaksi dari Supabase ke Baris Tabel
-            this.transactions.forEach((t, i) => {
+            // Selalu gunakan data terurut saat di-export agar konsisten dengan tabel di web
+            this.sortedTransactions.forEach((t, i) => {
                 barisExcel.push([
                     i + 1,
                     this.formatDate(t.date),
@@ -249,28 +279,24 @@ document.addEventListener('alpine:init', () => {
                 ]);
             });
 
-            // 3. Menambahkan Baris Ringkasan Total Otomatis di Paling Bawah
             barisExcel.push([]); 
             barisExcel.push(["", "", "", "", "TOTAL PEMASUKAN", "", this.totals.masuk]);
             barisExcel.push(["", "", "", "", "TOTAL PENGELUARAN", "", this.totals.keluar]);
             barisExcel.push(["", "", "", "", "SALDO AKHIR TERSEDIA", "", this.totals.saldo]);
 
-            // 4. Konversi Data Menjadi Worksheet Excel
             const ws = XLSX.utils.aoa_to_sheet(barisExcel);
 
-            // 5. ATUR LEBAR KOLOM OTOMATIS (Autofit) agar tidak terpotong (###)
             const lebarKolom = [
-                { wch: 6 },   // Kolom No
-                { wch: 15 },  // Kolom Tanggal
-                { wch: 18 },  // Kolom Jenis Transaksi
-                { wch: 16 },  // Kolom Kategori
-                { wch: 38 },  // Kolom Keterangan / Keperluan
-                { wch: 14 },  // Kolom Jumlah Barang
-                { wch: 22 }   // Kolom Nominal (Rp)
+                { wch: 6 },   // No
+                { wch: 15 },  // Tanggal
+                { wch: 18 },  // Jenis Transaksi
+                { wch: 16 },  // Kategori
+                { wch: 38 },  // Keterangan / Keperluan
+                { wch: 14 },  // Jumlah Barang
+                { wch: 22 }   // Nominal (Rp)
             ];
             ws['!cols'] = lebarKolom;
 
-            // 6. Satukan ke Workbook dan Jalankan Unduhan
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Rekap Finansial");
             
