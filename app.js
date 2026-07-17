@@ -5,8 +5,9 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
 document.addEventListener('alpine:init', () => {
     Alpine.data('rabApp', () => ({
-        // State UI & Default Halaman Diubah Langsung ke 'dashboard'
+        // State Navigasi & Kontrol Menu Mobile Terpusat
         currentTab: 'dashboard', 
+        mobileSidebarOpen: false, // Disatukan ke dalam objek utama agar responsif & tidak crash
         isModalOpen: false,
         isReceiptOpen: false,
         modalMode: 'add',
@@ -14,69 +15,70 @@ document.addEventListener('alpine:init', () => {
         toasts: [],
         chartInstance: null,
         
-        // State Fitur Sorting Transaksi Baru
+        // Kriteria Pengurutan Default
         sortBy: 'modifikasi-terbaru',
         
-        // State Data Utama
+        // State Data Transaksi Utama
         transactions: [],
         formData: { id: '', date: '', type: 'masuk', category: '', description: '', quantity: '', amount: '', receipt: '' },
 
-        // Fungsi inisialisasi awal saat aplikasi dimuat
+        // Fungsi inisialisasi awal aplikasi
         async init() {
             await this.fetchTransactions();
 
-            // Render grafik saat awal dibuka jika halaman default-nya dashboard
+            // Memastikan grafik digambar di layar HP/Desktop saat pertama kali aplikasi dibuka
             if (this.currentTab === 'dashboard') {
-                setTimeout(() => this.initChart(), 100);
+                setTimeout(() => this.initChart(), 150);
             }
 
+            // Pemantau Reaktif Perubahan Tab dan Data
             this.$watch('transactions', () => {
                 if(this.currentTab === 'dashboard') this.updateChart();
             });
             this.$watch('currentTab', (val) => {
-                if(val === 'dashboard') setTimeout(() => this.initChart(), 100);
+                if(val === 'dashboard') setTimeout(() => this.initChart(), 150);
             });
         },
 
-        // --- AMBIL DATA (READ) ---
+        // --- AMBIL DATA DARI CLOUD (READ) ---
         async fetchTransactions() {
             const { data, error } = await supabaseClient
                 .from('transactions')
                 .select('*');
             
             if (error) {
-                this.showToast('Gagal mengambil data: ' + error.message, 'error');
+                this.showToast('Gagal memuat data cloud: ' + error.message, 'error');
             } else {
                 this.transactions = data || [];
             }
         },
 
-        // --- LOGIKA UTAMA URUTAN DATA (SORTING GETTER) ---
+        // --- SISTEM SORTER TRANSAKSI ---
         get sortedTransactions() {
             return [...this.transactions].sort((a, b) => {
                 if (this.sortBy === 'modifikasi-terbaru') {
-                    return b.id - a.id; // Diurutkan berdasarkan timestamp pembuatan data terbaru
+                    return b.id - a.id; 
                 }
                 if (this.sortBy === 'modifikasi-terlama') {
-                    return a.id - b.id; // Urutan modifikasi terlama
+                    return a.id - b.id; 
                 }
                 if (this.sortBy === 'tanggal-terbaru') {
-                    const tanggalA = new Date(a.date);
-                    const tanggalB = new Date(b.date);
-                    if (tanggalB - tanggalA !== 0) return tanggalB - tanggalA;
-                    return b.id - a.id; // Jika tanggal sama, kembalikan ke inputan terbaru
+                    const tglA = new Date(a.date);
+                    const tglB = new Date(b.date);
+                    if (tglB - tglA !== 0) return tglB - tglA;
+                    return b.id - a.id; 
                 }
                 if (this.sortBy === 'tanggal-terlama') {
-                    const tanggalA = new Date(a.date);
-                    const tanggalB = new Date(b.date);
-                    if (tanggalA - tanggalB !== 0) return tanggalA - tanggalB;
+                    const tglA = new Date(a.date);
+                    const tglB = new Date(b.date);
+                    if (tglA - tglB !== 0) return tglA - tglB;
                     return a.id - b.id;
                 }
                 return 0;
             });
         },
 
-        // --- HITUNGAN & FORMATTER ---
+        // --- FORMATTER & OPERASI MATEMATIKA ---
         get totals() {
             let masuk = this.transactions.filter(t => t.type === 'masuk').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
             let keluar = this.transactions.filter(t => t.type === 'keluar').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
@@ -92,7 +94,7 @@ document.addEventListener('alpine:init', () => {
             return new Date(dateString).toLocaleDateString('id-ID', options);
         },
 
-        // --- MANAGEMENT MODAL & INPUT ---
+        // --- MANAGEMENT MODAL UTILITY ---
         openModal(mode, item = null) {
             this.modalMode = mode;
             if (mode === 'edit' && item) {
@@ -117,7 +119,7 @@ document.addEventListener('alpine:init', () => {
             if (!file) return;
             
             if (file.size > 2 * 1024 * 1024) {
-                this.showToast('Ukuran gambar maksimal 2MB!', 'error');
+                this.showToast('Nota melebihi batasan 2MB!', 'error');
                 e.target.value = ''; 
                 return;
             }
@@ -129,7 +131,7 @@ document.addEventListener('alpine:init', () => {
             reader.readAsDataURL(file);
         },
 
-        // --- SIMPAN DATA (CREATE & UPDATE) ---
+        // --- SIMPAN & EDIT DATA CLOUD ---
         async saveTransaction() {
             const payload = {
                 id: this.formData.id,
@@ -139,6 +141,7 @@ document.addEventListener('alpine:init', () => {
                 category: this.formData.category || null,
                 amount: parseFloat(this.formData.amount) || 0,
                 receipt: this.formData.receipt || null,
+                // Validasi data jumlah barang kosong diset otomatis jadi null agar Supabase aman
                 quantity: this.formData.quantity ? parseInt(this.formData.quantity) : null 
             };
 
@@ -149,12 +152,12 @@ document.addEventListener('alpine:init', () => {
                     .select();
                 
                 if (error) {
-                    this.showToast('Gagal menyimpan ke cloud: ' + error.message, 'error');
+                    this.showToast('Gagal menyimpan data: ' + error.message, 'error');
                     return;
                 }
                 
                 this.transactions.unshift(data[0]); 
-                this.showToast('Transaksi baru berhasil disimpan!', 'success');
+                this.showToast('Transaksi berhasil masuk database cloud!', 'success');
 
             } else if (this.modalMode === 'edit') {
                 const { data, error } = await supabaseClient
@@ -168,9 +171,9 @@ document.addEventListener('alpine:init', () => {
                     return;
                 }
 
-                const targetIndex = this.transactions.findIndex(t => t.id === this.formData.id);
-                if (targetIndex !== -1) {
-                    this.transactions[targetIndex] = data[0];
+                const indexData = this.transactions.findIndex(t => t.id === this.formData.id);
+                if (indexData !== -1) {
+                    this.transactions[indexData] = data[0];
                 }
                 this.showToast('Transaksi berhasil diperbarui!', 'success');
             }
@@ -178,28 +181,28 @@ document.addEventListener('alpine:init', () => {
             this.isModalOpen = false;
         },
 
-        // --- HAPUS DATA (DELETE) ---
+        // --- HAPUS DATA CLOUD ---
         async deleteTransaction(id) {
-            if (confirm('Apakah Anda yakin ingin menghapus data ini secara permanen dari Cloud database?')) {
+            if (confirm('Apakah Anda yakin ingin menghapus transaksi ini dari database cloud secara permanen?')) {
                 const { error } = await supabaseClient
                     .from('transactions')
                     .delete()
                     .eq('id', id);
                 
                 if (error) {
-                    this.showToast('Gagal menghapus data: ' + error.message, 'error');
+                    this.showToast('Gagal menghapus dari cloud: ' + error.message, 'error');
                     return;
                 }
 
-                const targetIndex = this.transactions.findIndex(t => t.id === id);
-                if (targetIndex !== -1) {
-                    this.transactions.splice(targetIndex, 1);
+                const indexData = this.transactions.findIndex(t => t.id === id);
+                if (indexData !== -1) {
+                    this.transactions.splice(indexData, 1);
                 }
-                this.showToast('Data berhasil dihapus!', 'success');
+                this.showToast('Transaksi sukses dihapus!', 'success');
             }
         },
 
-        // --- UTILITIES & TOAST ---
+        // --- NOTIFIKASI TOAST & PREVIEW ---
         viewReceipt(base64) {
             this.activeReceipt = base64;
             this.isReceiptOpen = true;
@@ -213,7 +216,7 @@ document.addEventListener('alpine:init', () => {
             }, 3000);
         },
 
-        // --- GRAFIK (CHART.JS) ---
+        // --- MOTOR GRAFIK RESPONSIF (CHART.JS) ---
         initChart() {
             const canvas = document.getElementById('rabChart');
             if (!canvas) return;
@@ -238,7 +241,7 @@ document.addEventListener('alpine:init', () => {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: { 
-                        legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } } 
+                        legend: { position: 'bottom', labels: { usePointStyle: true, padding: 15, boxWidth: 8, font: { size: 11 } } } 
                     },
                     cutout: '70%'
                 }
@@ -252,10 +255,10 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
-        // --- EXPORT LAPORAN EXCEL SUPER RAPI ---
+        // --- EKSPOR LAPORAN EXCEL SUPER RAPI ---
         exportToExcel() {
             if (this.transactions.length === 0) {
-                this.showToast('Tidak ada data transaksi untuk di-export', 'error');
+                this.showToast('Tidak ada data keuangan untuk diekspor', 'error');
                 return;
             }
             
@@ -266,7 +269,6 @@ document.addEventListener('alpine:init', () => {
                 ["No", "Tanggal", "Jenis Transaksi", "Kategori", "Keterangan / Keperluan", "Jumlah Barang", "Nominal (Rp)"] 
             ];
 
-            // Selalu gunakan data terurut saat di-export agar konsisten dengan tabel di web
             this.sortedTransactions.forEach((t, i) => {
                 barisExcel.push([
                     i + 1,
@@ -287,13 +289,7 @@ document.addEventListener('alpine:init', () => {
             const ws = XLSX.utils.aoa_to_sheet(barisExcel);
 
             const lebarKolom = [
-                { wch: 6 },   // No
-                { wch: 15 },  // Tanggal
-                { wch: 18 },  // Jenis Transaksi
-                { wch: 16 },  // Kategori
-                { wch: 38 },  // Keterangan / Keperluan
-                { wch: 14 },  // Jumlah Barang
-                { wch: 22 }   // Nominal (Rp)
+                { wch: 6 }, { wch: 15 }, { wch: 18 }, { wch: 16 }, { wch: 38 }, { wch: 14 }, { wch: 22 }
             ];
             ws['!cols'] = lebarKolom;
 
